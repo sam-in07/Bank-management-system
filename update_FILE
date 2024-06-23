@@ -1,0 +1,660 @@
+#include <cstdlib>
+#include <chrono>
+#include <thread>
+#include <iostream>
+#include <unordered_map>
+#include <string>
+#include <fstream>
+
+#define ll long long
+using namespace std;
+
+/*
+
+In bank mnagement part :
+New User
+Alredy Use
+Deposite Option
+Withdraw Option
+Transfer Option
+Payment Option
+Search User Record
+Edit User Record
+Delete User Record
+Show All Record
+Payemnt All Record
+GO Back
+
+
+*/
+/*
+
+In ATM MAnagement : User Login & Check Banalnce
+Wihdraw Amount
+Account Details
+GO Back
+*/
+class Account
+{
+  private:
+	int accountNumber;
+	string accountHolderName;
+	string email;
+	string password;
+	string pin;
+	double balance;
+
+  public:
+	// Default constructor
+	Account() : accountNumber(0), accountHolderName(""), email(""), password(""), pin(""), balance(0.0) {}
+
+	// Parameterized constructor
+	Account(int accNum, string name, string mail, string pwd, string pinCode)
+		: accountNumber(accNum), accountHolderName(name), email(mail), password(pwd), pin(pinCode), balance(0.0) {}
+
+	int getAccountNumber() const
+	{
+		return accountNumber;
+	}
+
+	string getAccountHolderName() const
+	{
+		return accountHolderName;
+	}
+
+	string getEmail() const
+	{
+		return email;
+	}
+
+	double getBalance() const
+	{
+		return balance;
+	}
+
+	bool verifyCredentials(int accountNumber, string mail, string pwd, string pinCode)
+	{
+		string zname = to_string(accountNumber);
+		ifstream file(zname + ".txt");
+
+		string name;
+		string blnce;
+		if (file)
+		{
+			getline(file, name);
+			getline(file, email);
+			getline(file, password);
+			getline(file, pin);
+			getline(file, blnce);
+		}
+		else
+		{
+			this_thread::sleep_for(chrono::milliseconds(500));
+			system("cls");
+			cout << "file open failed";
+		}
+		balance = stod(blnce);
+		accountHolderName = name;
+		file.close();
+		return email == mail && password == pwd && pin == pinCode;
+	}
+
+	bool loadFromFile(const int &accountNum)
+	{
+		accountNumber = accountNum;
+		string filename = to_string(accountNum) + ".txt";
+		ifstream file(filename);
+		if (file)
+		{
+			getline(file, accountHolderName);
+			getline(file, email);
+			getline(file, password);
+			getline(file, pin);
+			file >> balance;
+			return true;
+		}
+		return false;
+	}
+
+	void deposit(double amount)
+	{
+		balance += amount;
+
+		cout << "Deposited $" << amount << " to account number " << accountNumber << endl;
+
+		ofstream file1;
+		string zname = to_string(accountNumber);
+		file1.open(zname + ".txt");
+		file1 << accountHolderName << endl
+			  << email << endl
+			  << password << endl
+			  << pin << endl
+			  << to_string(balance);
+		file1.close();
+	}
+
+	bool withdraw(double amount)
+	{
+		if (amount > balance)
+		{
+			cout << "Insufficient balance!" << endl;
+
+			return false;
+		}
+		balance -= amount;
+		cout << "Withdrew $" << amount << " from account number " << accountNumber << endl;
+
+		ofstream file1;
+		string zname = to_string(accountNumber);
+		file1.open(zname + ".txt");
+		file1 << accountHolderName << endl
+			  << email << endl
+			  << password << endl
+			  << pin << endl
+			  << to_string(balance);
+		file1.close();
+
+		return true;
+	}
+
+	void printDetails() const
+	{
+		cout << "Account Number: " << accountNumber << endl;
+
+		cout << "Account Holder: " << accountHolderName << endl;
+
+		cout << "Email: " << email << endl;
+
+		cout << "Balance: $" << balance << endl;
+	}
+
+	void setAccountHolderName(string name)
+	{
+		accountHolderName = name;
+	}
+
+	void setEmail(string mail)
+	{
+		email = mail;
+	}
+
+	void setPassword(string pwd)
+	{
+		password = pwd;
+	}
+
+	void setPin(string pinCode)
+	{
+		pin = pinCode;
+	}
+};
+
+class Bank
+{
+  private:
+	unordered_map<int, Account> accounts;
+
+	int nextAccountNumber;
+
+  public:
+	Bank()
+	{
+		string numbercatcher;
+		ifstream file("0.txt");
+		getline(file, numbercatcher);
+		nextAccountNumber = stoi(numbercatcher);
+	}
+
+	int createAccount(string name, string email, string password, string pin)
+	{
+		Account newAccount(nextAccountNumber, name, email, password, pin);
+		accounts[nextAccountNumber] = newAccount;
+		cout << "Account created with account number: " << nextAccountNumber << endl;
+
+		ofstream file1;
+		string zname = to_string(nextAccountNumber);
+		file1.open(zname + ".txt");// "5.txt"
+		file1 << name << endl
+			  << email << endl
+			  << password << endl
+			  << pin << endl
+			  << 0.00;
+		file1.close();
+
+		nextAccountNumber++;
+		zname = to_string(nextAccountNumber);
+
+		ofstream file2;
+		file2.open("0.txt");
+		file2 << zname << endl;
+		file2.close();
+
+		return nextAccountNumber;
+	}
+
+	Account *getAccount(int accountNumber)
+	{
+		if (accounts.find(accountNumber) != accounts.end())
+		{
+			return &accounts[accountNumber];
+		}
+		else
+		{
+			return addAccount(accountNumber);
+		}
+	}
+
+	Account *addAccount(int accountNumber)
+	{
+		string filename = to_string(accountNumber) + ".txt";
+
+		Account newAccount;
+		if (newAccount.loadFromFile(accountNumber))
+		{
+			accounts[accountNumber] = newAccount;
+			return &accounts[accountNumber];
+		}
+		else
+		{
+			cout << "Failed to load account from file: " << filename << endl;
+			return nullptr;
+		}
+	}
+
+	void deposit(int accountNumber, double amount)
+	{
+		Account *acc = getAccount(accountNumber);
+		if (acc)
+		{
+			acc->deposit(amount);
+		}
+	}
+
+	bool withdraw(int accountNumber, double amount)
+	{
+		Account *acc = getAccount(accountNumber);
+		if (acc)
+		{
+			return acc->withdraw(amount);
+		}
+		return false;
+	}
+
+	void transfer(int fromAccount, int toAccount, double amount)
+	{
+		Account *fromAcc = getAccount(fromAccount);
+		Account *toAcc = getAccount(toAccount);
+		if (fromAcc && toAcc)
+		{
+			if (fromAcc->withdraw(amount))
+			{
+				toAcc->deposit(amount);
+				cout << "Transferred $" << amount << " from account number " << fromAccount << " to account number " << toAccount << endl;
+			}
+		}
+	}
+
+	void searchUserRecord(int accountNumber)
+	{
+		Account *acc = getAccount(accountNumber);
+		if (acc)
+		{
+			acc->printDetails();
+		}
+	}
+
+	void editUserRecord(int accountNumber, string name, string email, string password, string pin)
+	{
+		Account *acc = getAccount(accountNumber);
+
+		if (acc)
+		{
+			acc->setAccountHolderName(name);
+
+			acc->setEmail(email);
+
+			acc->setPassword(password);
+
+			acc->setPin(pin);
+			cout << "Account details updated for account number " << accountNumber << endl;
+
+			ofstream file1;
+			string zname = to_string(accountNumber);
+			file1.open(zname + ".txt");
+			this_thread::sleep_for(chrono::milliseconds(500));
+			system("cls");
+			file1 << name << endl
+				  << email << endl
+				  << password << endl
+				  << pin << endl
+				  << to_string(acc->getBalance());
+			file1.close();
+		}
+	}
+
+	void deleteUserRecord(int accountNumber)
+	{
+		string filename = to_string(accountNumber) + ".txt";
+		if (remove(filename.c_str()) != 0)
+		{
+			cerr << "Error deleting file: " << filename << "\n";
+		}
+		else
+		{
+			cout << "File successfully deleted: " << filename << "\n";
+		}
+
+		if (accounts.erase(accountNumber))
+		{
+			cout << "Account number " << accountNumber << " deleted successfully!" << endl;
+		}
+	}
+
+	void showAllRecords()
+	{
+		for (const auto &pair : accounts)
+		{
+			pair.second.printDetails();
+		}
+	}
+};
+
+class ATM
+{
+  private:
+	Bank &bank;
+
+  public:
+	ATM(Bank &bankRef) : bank(bankRef) {}
+
+	void userLogin()
+	{
+		int accountNumber;
+
+		string email, password, pin;
+		cout << "Enter account number: ";
+
+		cin >> accountNumber;
+
+		Account *acc = bank.getAccount(accountNumber);
+
+		if (acc)
+		{
+			cout << "Enter email: ";
+
+			cin >> email;
+
+			cout << "Enter password: ";
+
+			cin >> password;
+
+			cout << "Enter PIN: ";
+
+			cin >> pin;
+
+			if (acc->verifyCredentials(accountNumber, email, password, pin))
+			{
+				int choice;
+
+				do
+				{
+                    cin.get();
+                    system("pause");
+					system("cls");
+					cout << "\n1. Check Balance\n2. Withdraw Amount\n3. View Account Details\n4. Go Back\n";
+					cout << "Enter your choice: ";
+
+					cin >> choice;
+
+					switch (choice)
+					{
+					case 1:
+
+						cout << "Current balance: $" << acc->getBalance() << endl;
+
+						break;
+					case 2:
+					{
+						double amount;
+
+						cout << "Enter amount to withdraw: ";
+
+						cin >> amount;
+
+						bank.withdraw(accountNumber, amount);
+
+						break;
+					}
+					case 3:
+						acc->printDetails();
+
+						break;
+
+					case 4:
+						cout << "Logging out..." << endl;
+
+						break;
+
+					default:
+						cout << "Invalid choice, please try again." << endl;
+					}
+				} while (choice != 4);
+			}
+			else
+			{
+				this_thread::sleep_for(chrono::milliseconds(500));
+				system("cls");
+				cout << "Invalid email, password, or PIN!" << endl;
+			}
+		}
+	}
+};
+
+int main()
+{
+	Bank myBank;
+
+	ATM myATM(myBank);
+
+	int choice;
+
+	do
+	{
+
+		system("cls");
+		cout << "\n1. Create Account\n2. Log in\n3. Deposit Option\n4. Withdraw Option\n5. Transfer Option\n6. Payment Option\n7. Search User Record\n8. Edit User Record\n9. Delete User Record\n10. Show All Record\n11. Go Back\n";
+
+		cout << "Enter your choice: ";
+
+		cin >> choice;
+
+		system("cls");
+		switch (choice)
+		{
+		case 1:
+		{
+
+			system("cls");
+			string name, email, password;
+
+			string pin;
+			cout << "Enter account holder name: ";
+
+			cin >> name;
+			cout << "Enter email: ";
+
+			cin >> email;
+
+			cout << "Enter password: ";
+
+			cin >> password;
+			cout << "Enter PIN: ";
+
+			cin >> pin;
+			myBank.createAccount(name, email, password, pin);
+
+			cin.get();
+            system("pause");
+			break;
+		}
+		case 2:
+
+			system("cls");
+			myATM.userLogin();
+			break;
+		case 3:
+		{
+
+			system("cls");
+			int accountNumber;
+			double amount;
+
+			cout << "Enter account number: ";
+			cin >> accountNumber;
+
+			cout << "Enter amount to deposit: ";
+			cin >> amount;
+
+			myBank.deposit(accountNumber, amount);
+
+			cin.get();
+            system("pause");
+
+			break;
+		}
+		case 4:
+		{
+
+			system("cls");
+			int accountNumber;
+			double amount;
+
+			cout << "Enter account number: ";
+			cin >> accountNumber;
+
+			cout << "Enter amount to withdraw: ";
+			cin >> amount;
+
+			myBank.withdraw(accountNumber, amount);
+
+			cin.get();
+            system("pause");
+			break;
+		}
+		case 5:
+		{
+
+			system("cls");
+			int fromAccount, toAccount;
+			double amount;
+
+			cout << "Enter your account number: ";
+			cin >> fromAccount;
+
+			cout << "Enter recipient account number: ";
+			cin >> toAccount;
+
+			cout << "Enter amount to transfer: ";
+			cin >> amount;
+
+			myBank.transfer(fromAccount, toAccount, amount);
+
+			cin.get();
+            system("pause");
+			break;
+		}
+		case 6:
+		{
+
+			system("cls");
+			cout << "Payment option is currently not implemented." << endl;
+
+			cin.get();
+            system("pause");
+
+			break;
+		}
+		case 7:
+		{
+
+			system("cls");
+			int accountNumber;
+
+			cout << "Enter account number to search: ";
+
+			cin >> accountNumber;
+
+			myBank.searchUserRecord(accountNumber);
+
+			cin.get();
+            system("pause");
+
+			break;
+		}
+		case 8:
+		{
+
+			system("cls");
+			int accountNumber;
+
+			string name, email, password;
+
+			string pin;
+
+			cout << "Enter account number to edit: ";
+
+			cin >> accountNumber;
+			cout << "Enter new account holder name: ";
+
+			cin >> name;
+			cout << "Enter new email: ";
+
+			cin >> email;
+			cout << "Enter new password: ";
+
+			cin >> password;
+			cout << "Enter new PIN: ";
+
+			cin >> pin;
+			myBank.editUserRecord(accountNumber, name, email, password, pin);
+
+			cin.get();
+            system("pause");
+			break;
+		}
+		case 9:
+		{
+
+			system("cls");
+			int accountNumber;
+			cout << "Enter account number to delete: ";
+			cin >> accountNumber;
+			// deleting user record bang bang
+			myBank.deleteUserRecord(accountNumber);
+
+			cin.get();
+            system("pause");
+			break;
+		}
+		case 10:
+
+			system("cls");
+			myBank.showAllRecords();
+
+			cin.get();
+            system("pause");
+			break;
+		case 11:
+
+			system("cls");
+			cout << "Exiting program..." << endl;
+			break;
+		default:
+
+			system("cls");
+			cout << "Invalid choice, please try again." << endl;
+		}
+	} while (choice != 11);
+
+	return 0;
+}
